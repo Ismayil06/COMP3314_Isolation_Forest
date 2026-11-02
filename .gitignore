@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+
+# Datasets (large / third-party licensed) — document download steps in README instead
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Paper PDF (copyrighted by IEEE, link to it instead of redistributing)
+paper/*.pdf
+
+# Experiment logs (keep final tables/figures, drop noisy run logs)
+results/logs/*
+!results/logs/.gitkeep
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
