@@ -80,3 +80,42 @@ class ITree:
                 stack.append((self.left[node], idx[goes_left]))
                 stack.append((self.right[node], idx[~goes_left]))
         return h
+
+class IsolationForest:
+    def __init__(self, n_trees=100, sample_size=256, random_state=None):
+        self.n_trees = n_trees            
+        self.sample_size = sample_size    
+        self.random_state = random_state  
+
+    def fit(self, X):
+        X = _check_data(X)
+        n = len(X)
+        if n < 2:
+            raise ValueError("Need at least 2 points to build a forest.")
+        rng = np.random.default_rng(self.random_state)
+        self.psi_ = min(self.sample_size, n)                    
+        self.height_limit_ = int(np.ceil(np.log2(self.psi_)))    
+        self.trees_ = []
+        self.sample_indices_ = []
+        for _ in range(self.n_trees):
+            idx = rng.choice(n, size=self.psi_, replace=False)   
+            tree = ITree(self.height_limit_, rng).fit(X[idx])
+            self.trees_.append(tree)
+            self.sample_indices_.append(idx)
+        return self
+
+    def path_length(self, X):
+        X = _check_data(X)
+        return np.mean([tree.path_length(X) for tree in self.trees_], axis=0)
+
+    def score(self, X):
+        return 2.0 ** (-self.path_length(X) / c(self.psi_))
+
+
+def _check_data(X):
+    X = np.asarray(X, dtype=float)
+    if X.ndim != 2:
+        raise ValueError("X must be 2-D: rows are points, columns are attributes.")
+    if np.isnan(X).any():
+        raise ValueError("X contains missing values (NaN).")
+    return X

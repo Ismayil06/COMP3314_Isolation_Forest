@@ -1,1 +1,1 @@
-from .core import c, harmonic, ITree
+from .core import c, harmonic, ITree, IsolationForest
