@@ -1,35 +1,30 @@
-"""From-scratch Isolation Forest (Liu, Ting & Zhou, 2008), using NumPy only."""
 import numpy as np
 
 
 def harmonic(i):
-    """Harmonic number H(i) = 1 + 1/2 + ... + 1/i, with H(0) = 0."""
     if i < 1:
         return 0.0
     return float(np.sum(1.0 / np.arange(1, i + 1)))
 
 
 def c(n):
-    """Average path length for n points: c(n) = 2H(n-1) - 2(n-1)/n  (paper, Eq. 1)."""
     if n <= 1:
         return 0.0
     return 2.0 * harmonic(n - 1) - 2.0 * (n - 1) / n
 
 class ITree:
-    """One isolation tree (paper, Algorithm 2), stored as flat lists of nodes."""
 
     def __init__(self, height_limit, rng):
-        self.height_limit = height_limit  # l in the paper
-        self.rng = rng                    # random number generator
-        self.left = []         # number of the left child  (-1 = none)
-        self.right = []        # number of the right child (-1 = none)
-        self.split_att = []    # attribute q tested here   (-1 = external node)
-        self.split_value = []  # split value p             (nan = external node)
-        self.size = []         # how many training points reached this node
-        self.depth = []        # how many edges from the root to this node
+        self.height_limit = height_limit  
+        self.rng = rng                    
+        self.left = []        
+        self.right = []        
+        self.split_att = []   
+        self.split_value = [] 
+        self.size = []        
+        self.depth = []       
 
     def fit(self, X):
-        """Grow the tree on data X (rows = points, columns = attributes)."""
         self._grow(X, depth=0)
         self.left = np.array(self.left)
         self.right = np.array(self.right)
@@ -40,7 +35,6 @@ class ITree:
         return self
 
     def _new_node(self, size, depth):
-        """Add an empty node and return its number."""
         self.left.append(-1)
         self.right.append(-1)
         self.split_att.append(-1)
@@ -50,7 +44,6 @@ class ITree:
         return len(self.size) - 1
 
     def _grow(self, X, depth):
-        """Algorithm 2: build the subtree for data X at the given depth."""
         node = self._new_node(len(X), depth)
 
         if depth >= self.height_limit or len(X) <= 1:
@@ -63,7 +56,7 @@ class ITree:
             return node
         q = int(self.rng.choice(can_split))
         p = self.rng.uniform(mins[q], maxs[q])
-        if p <= mins[q]:      # probability ~0; keeps both sides non-empty
+        if p <= mins[q]:    
             p = maxs[q]
 
         goes_left = X[:, q] < p
@@ -72,3 +65,18 @@ class ITree:
         self.left[node] = self._grow(X[goes_left], depth + 1)
         self.right[node] = self._grow(X[~goes_left], depth + 1)
         return node
+
+    def path_length(self, X):
+        h = np.zeros(len(X))
+        stack = [(0, np.arange(len(X)))]         
+        while stack:
+            node, idx = stack.pop()
+            if len(idx) == 0:
+                continue
+            if self.left[node] == -1:
+                h[idx] = self.depth[node] + c(self.size[node])
+            else:
+                goes_left = X[idx, self.split_att[node]] < self.split_value[node]
+                stack.append((self.left[node], idx[goes_left]))
+                stack.append((self.right[node], idx[~goes_left]))
+        return h
