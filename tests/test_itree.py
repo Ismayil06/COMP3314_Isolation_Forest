@@ -4,29 +4,26 @@ from iforest import ITree
 
 
 def grow(X, height_limit=100, seed=0):
-    """Helper: build one tree on X with a fixed random seed."""
     rng = np.random.default_rng(seed)
     return ITree(height_limit=height_limit, rng=rng).fit(np.asarray(X, dtype=float))
 
 
 def external(tree):
-    """True for external nodes (nodes with no children)."""
     return tree.left == -1
 
 
 def test_walkthrough_example_gives_a_full_tree():
-    # Our Step 2 example: five points {1, 2, 3, 4, 10}, no height limit
     tree = grow([[1], [2], [3], [4], [10]])
-    assert len(tree.size) == 9                  # 2n - 1 nodes
-    assert external(tree).sum() == 5           # n external nodes
-    assert (~external(tree)).sum() == 4        # n - 1 internal nodes
+    assert len(tree.size) == 9                 
+    assert external(tree).sum() == 5           
+    assert (~external(tree)).sum() == 4       
     assert (tree.size[external(tree)] == 1).all()
 
 
 def test_full_tree_on_256_points_has_2psi_minus_1_nodes():
     X = np.random.default_rng(1).normal(size=(256, 3))
     tree = grow(X)
-    assert len(tree.size) == 2 * 256 - 1       # 511 nodes (paper, Section 6)
+    assert len(tree.size) == 2 * 256 - 1       
     assert external(tree).sum() == 256
     assert (tree.size[external(tree)] == 1).all()
 
@@ -83,7 +80,7 @@ def test_single_point_is_a_single_external_node():
 
 def test_constant_attribute_is_never_split_on():
     X = np.random.default_rng(6).normal(size=(100, 2))
-    X[:, 0] = 3.0                              # attribute 0 never varies
+    X[:, 0] = 3.0                             
     tree = grow(X)
     assert 0 not in tree.split_att
 

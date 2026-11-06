@@ -1,4 +1,3 @@
-"""checks that  tools are installed correctly."""
 import sys
 
 
