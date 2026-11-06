@@ -1,0 +1,4 @@
+dataset,auc_ours_mean,auc_ours_std,auc_sklearn_mean,auc_sklearn_std,spearman_ours_vs_sklearn,spearman_ours_vs_ours
+clustered_anomalies,0.8306,0.0123,0.8347,0.0175,0.9514,0.9516
+gaussian_10d,0.8889,0.0049,0.8967,0.0064,0.9313,0.9249
+gaussian_2d,0.9948,0.0007,0.9955,0.0006,0.9689,0.9647
