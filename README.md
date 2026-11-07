@@ -89,8 +89,8 @@ sub-sampling without replacement.
 | C0 | From-scratch iForest: iTree, iForest, PathLength, score (+ unit tests) | Alg. 1–3, Eq. 1–2 | P1 | `src/iforest/` | ☐ |
 | C1 | iForest (ours) on creditcard with paper defaults (t=100, ψ=256) | Table 3 | P1 | `results/tables/cc_main_*` | ☐ |
 | C2 | Baselines: sklearn iForest, LOF (k=10), ORCA-style k-NN (k=5, N=n/8), (opt.) One-Class SVM / autoencoder | Table 3 | P1 | `results/tables/cc_baselines_*` | ☐ |
-| C3 | AUC & runtime vs sub-sampling size ψ = 2 … 32768 | Fig. 6, Sec. 6 | P1 | `results/figures/cc_psi_*` | ☐ |
-| C4 | AUC vs number of trees t | Fig. 5 | P1 | `results/figures/cc_trees_*` | ☐ |
+| C3 | AUC & runtime vs sub-sampling size ψ = 2 … 32768 | Fig. 6, Sec. 6 | P1 | `results/figures/cc_psi*` | ☑ |
+| C4 | AUC vs number of trees t | Fig. 5 | P1 | `results/figures/cc_trees*` | ☑ |
 | C5 | Train on genuine transactions only vs contaminated training data (10 random splits, larger ψ to recover AUC) | Sec. 5.4 | P2 | `results/tables/cc_normal_only_*` | ☐ |
 | C6 | Kurtosis-based feature subspace selection (+ optionally 506 added uniform-noise features, as in the paper) | Fig. 7, Sec. 5.3 | P2 | `results/figures/cc_kurtosis_*` | ☐ |
 | C7 | Anomaly-score threshold analysis: precision / recall / F1, alerts per 1,000 transactions | — | P2 | `results/figures/cc_threshold_*` | ☐ |
@@ -151,7 +151,13 @@ good. Also report:
 
 ## 7. How to Run
 
-- [ ] TODO: Fill in once experiment scripts exist. Planned interface:
+C3 and C4 (run from the repo root, needs `data/raw/creditcard.csv`):
+```bash
+python experiments/cc_trees.py   # C4, about 2 min
+python experiments/cc_psi.py     # C3
+```
+
+- [ ] TODO: Fill in once the other experiment scripts exist. Planned interface:
   ```bash
   python experiments/<experiment_name>.py   # writes to results/tables and results/figures
   ```
@@ -178,9 +184,9 @@ Paper numbers are on other data sets, so the comparison is about **trends**, not
 
 | Paper claim | Paper value | Our finding on creditcard | Agrees? |
 |-------------|-------------|---------------------------|---------|
-| AUC converges by t ≈ 100 (Fig. 5) | converged well before t=100 | | |
-| ψ near-optimal at 128–512 (Fig. 6) | Http ψ=128, ForestCover ψ=512 | | |
-| Time grows slowly with ψ (Sec. 6) | 64× ψ → 1.6× time | | |
+| AUC converges by t ≈ 100 (Fig. 5) | converged well before t=100 | AUC 0.848 (t=1), 0.930 (t=10), 0.947 (t=50), 0.949 (t=100), 0.950 (t=300) | Yes: flat after ~50–100 trees |
+| ψ near-optimal at 128–512 (Fig. 6) | Http ψ=128, ForestCover ψ=512 | AUC plateaus at ~0.95 from ψ≈32 up to 32768; but average precision keeps rising until ψ≈2048 (0.12 at ψ=128, 0.24 at ψ=2048) | AUC: yes. AP: partly, larger ψ still helps |
+| Time grows slowly with ψ (Sec. 6) | 64× ψ → 1.6× time | ψ=256 → 16384 (64×): train+score 5.2 s → 15.0 s (2.9×); training alone 0.26 s → 7.7 s (~29×) | Partly: total time grows slowly because scoring 284k rows dominates, but training time grows almost linearly in ψ |
 | iForest faster than LOF / ORCA (Table 3) | orders of magnitude on large data | | |
 | Normal-only training small AUC drop (Sec. 5.4) | Http 0.9997→0.9919; ForestCover 0.8817→0.8802 | | |
 | Larger ψ restores normal-only AUC (Sec. 5.4) | Http 0.9997 at ψ=8192 | | |
@@ -211,6 +217,8 @@ Comparison with the paper:
 - [ ] Algorithm 2 split value: handle the degenerate case where all values of an attribute are equal.
 - [ ] Kurtosis subspace selection (Sec. 5.3): exact subspace sizes and tie-breaking not fully specified.
 - [ ] Hardware / language differences make absolute running times incomparable.
+- C3/C4 setup: full data scored (no train/test split), 5 seeds (0–4), t=100 for C3 and ψ=256 for C4, ψ swept from 2 to 32768. ψ=2 gives AUC 0.5 because every tree has a single split (scores are almost all equal).
+- Our C3 timings come from one machine and a pure-Python implementation, so only the trend is comparable with the paper.
 
 ---
 
@@ -226,7 +234,9 @@ Comparison with the paper:
 | ORCA-style k-NN baseline | TODO: own / third-party |
 | LOF baseline | TODO: likely `scikit-learn` `LocalOutlierFactor` (reused) |
 | Reference iForest for sanity checks | `scikit-learn` `IsolationForest` (reused, comparison only) |
-| Metrics (ROC-AUC, AP) | TODO: `sklearn.metrics` (reused) |
+| Metrics (ROC-AUC, AP) | `sklearn.metrics` (reused) |
+| Credit card loader (`src/datasets/creditcard.py`) | Own code (uses `pandas`) |
+| C3/C4 experiment scripts (`experiments/cc_psi.py`, `cc_trees.py`) | Own code (plots with `matplotlib`) |
 
 ---
 
@@ -270,7 +280,7 @@ Comparison with the paper:
 
 ### Phase 4 — Experiments (`experiments/cc_*`)
 - [ ] C1 main result, C2 baselines
-- [ ] C3 ψ sensitivity, C4 number of trees
+- [x] C3 ψ sensitivity, C4 number of trees
 - [ ] C5 normal-only training
 - [ ] C6 Kurtosis feature selection
 - [ ] C7 threshold / alert-budget analysis
