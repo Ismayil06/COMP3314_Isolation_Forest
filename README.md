@@ -94,14 +94,15 @@ sub-sampling without replacement.
 | C5 | Train on genuine transactions only vs contaminated training data (10 random splits, larger ψ to recover AUC) | Sec. 5.4 | P2 | `results/tables/cc_normal_only_*` | ☐ |
 | C6 | Kurtosis-based feature subspace selection (+ optionally 506 added uniform-noise features, as in the paper) | Fig. 7, Sec. 5.3 | P2 | `results/figures/cc_kurtosis_*` | ☐ |
 | C7 | Anomaly-score threshold analysis: precision / recall / F1, alerts per 1,000 transactions | — | P2 | `results/figures/cc_threshold_*` | ☐ |
-| C8 | Sub-sampling vs swamping/masking: AUC on full data vs sub-sample; score distributions of fraud vs genuine; 2-D score contour on top features | Sec. 3, Fig. 3–4 | P3 | `results/figures/cc_scores_*` | ☐ |
+| C8 | Sub-sampling vs swamping/masking: AUC on full data vs sub-sample; score distributions of fraud vs genuine; 2-D score contour on top features | Sec. 3, Fig. 3–4 | P3 | `results/figures/cc_scores_*` | ☑ |
 | C9 | Path-length convergence illustration: a genuine vs a fraud transaction as t grows | Fig. 1 | P3 | `results/figures/cc_pathlen_*` | ☐ |
 | C10 | (Optional) Supervised reference (Logistic Regression / Random Forest) to show the label-free trade-off | — | P3 | `results/tables/cc_supervised_ref_*` | ☐ |
+| C11 | Extension: SCiForest (Liu, Ting & Zhou, ECML PKDD 2010) from scratch vs our iForest; synthetic sanity check; 2-D score maps | SCiForest paper, Alg. 1–2, Eq. 2–3 | P2 | `src/sciforest/`, `results/*/cc_sciforest_*` | ☑ |
 
 **Metrics.** ROC-AUC is the metric the paper uses, but with 0.17% fraud it can look misleadingly
 good. Also report:
 - [ ] Average Precision (area under the precision–recall curve)
-- [ ] Precision@k / Recall@k (e.g. k = 492, top 0.1%, top 1%)
+- [x] Precision@k / Recall@k (e.g. k = 492, top 0.1%, top 1%) — `src/utils/metrics.py`
 - [ ] Recall at a fixed false-positive rate (e.g. 0.1%, 1%)
 - [ ] Train / scoring time (compare relative speed, not absolute times, with the paper)
 - [ ] Mean ± std over several random seeds
@@ -155,7 +156,11 @@ C3 and C4 (run from the repo root, needs `data/raw/creditcard.csv`):
 ```bash
 python experiments/cc_trees.py   # C4, about 2 min
 python experiments/cc_psi.py     # C3
+python experiments/cc_scores.py  # C8, about 8 min (the whole-data part is ~2 min per seed)
+python experiments/cc_sciforest.py   # C11 SCiForest extension, about 4 min
 ```
+Both C8 and C11 take `--parts` and `--seeds`, and save per-seed rows as they go, so a long part can be
+run in pieces, e.g. `python experiments/cc_scores.py --parts fullsample --seeds 1 2`.
 
 - [ ] TODO: Fill in once the other experiment scripts exist. Planned interface:
   ```bash
@@ -191,9 +196,59 @@ Paper numbers are on other data sets, so the comparison is about **trends**, not
 | Normal-only training small AUC drop (Sec. 5.4) | Http 0.9997→0.9919; ForestCover 0.8817→0.8802 | | |
 | Larger ψ restores normal-only AUC (Sec. 5.4) | Http 0.9997 at ψ=8192 | | |
 | Kurtosis selection helps with noise features (Fig. 7) | AUC peaks near original attribute count | | |
-| Sub-sampling reduces masking/swamping (Fig. 4) | Mulcross AUC 0.67 → 0.91 | | |
+| Sub-sampling reduces masking/swamping (Fig. 4) | Mulcross AUC 0.67 → 0.91 | Whole data (ψ = n) vs ψ = 256, 3 seeds: AUC 0.953 vs 0.950, AP 0.236 vs 0.162, recall@1% 0.72 vs 0.61. No masking found: frauds' path length does not grow with the number of frauds in a tree's sample (slope 95% CIs include 0 at ψ = 256, 2048, 8192) | No: on this data sub-sampling buys speed (training 114 s → 0.14 s), not accuracy |
 
 ### 8.3 Sensitivity plots, normal-only training, Kurtosis, thresholds
+
+**C8: swamping/masking, score distributions, score map** (`experiments/cc_scores.py`; full data, t = 100)
+
+- **Whole data vs sub-sample** (`cc_scores_fullsample_*`, 3 seeds): using all 284,807 rows as the
+  sample gives AUC 0.953 ± 0.003 vs 0.950 ± 0.003 at ψ = 256, AP 0.236 ± 0.013 vs 0.162 ± 0.014 and
+  recall@1% 0.72 vs 0.61, at ~800× the training time. The paper's Fig. 4 effect (sub-sampling
+  *raises* AUC by removing masking) does not appear; it agrees with C3, where AP keeps rising with ψ.
+- **Direct masking test** (`cc_scores_masking.png`): each tree's sample holds a random number of
+  frauds (mean 0.4 at ψ = 256, 3.6 at 2048, 14.1 at 8192). If frauds masked each other, unseen
+  frauds would get longer paths in trees that saw more frauds. They do not: the slope per extra fraud
+  is −0.009 ± 0.026, +0.007 ± 0.009 and +0.002 ± 0.004 (in units of c(ψ), 95% CI, 500 trees each).
+  Frauds stay at about 0.8–0.9 c(ψ) and genuine transactions at 1.3–1.5 c(ψ).
+- **Score distributions and fixed cut-offs** (`cc_scores_distributions.png`, `cc_scores_cutoffs.csv`, seed 0):
+  s ≥ 0.6 flags 0.57% of transactions at ψ = 256 (precision 0.15, recall 0.49) but 0.21% at
+  ψ = 8192 (precision 0.29, recall 0.35). The meaning of a fixed cut-off changes with ψ.
+- **Score map** (`cc_scores_contour.png`): an iForest trained on only V14 and V4 (the two attributes
+  that best separate fraud on their own) reaches AUC 0.964 and AP 0.580, against AP 0.15 with all
+  30 attributes. Caveat: the pair was chosen *with labels*, so this is an upper bound, not a valid
+  unsupervised result; it shows how much irrelevant attributes dilute iForest (see C6).
+
+### 8.4 Extension: SCiForest (C11)
+
+`src/sciforest/` implements SCiForest from scratch with the same API as our iForest (`fit`,
+`path_length`, `score`); tests in `tests/test_sciforest.py`. Paper settings: q = 2 attributes per
+hyperplane, τ = 10 candidate hyperplanes, trees grown until ≤ 2 points, acceptable range on.
+
+| (full data, t = 100, ψ = 256, 5 seeds) | iForest (ours) | SCiForest (ours) |
+|---|---:|---:|
+| ROC-AUC | 0.949 ± 0.003 | 0.926 ± 0.001 |
+| Average precision | 0.148 ± 0.025 | 0.035 ± 0.004 |
+| Precision@492 | 0.260 | 0.046 |
+| Recall at top 1% reviewed | 0.589 | 0.259 |
+| Genuine share of the top 0.1% | 0.71 | 0.94 |
+| Mean leaf depth | 6.8 | 32.1 |
+| Splits (nodes ≥ 32 points) cutting off one point | 22% | 68% |
+| Fit + score time | 2.8 s | 22.3 s |
+
+- iForest reproduces C3's ψ = 256 runs exactly (checked by the script).
+- At a 0.5% review budget, 82 frauds are caught by both, 143 by iForest only, 1 by SCiForest only.
+- **Synthetic sanity check** (`sciforest_synthetic.png`): with one dense anomaly cluster, SCiForest
+  keeps AUC 0.86 at 30% contamination while iForest falls to 0.21; with scattered anomalies both
+  reach ≈ 0.998. The implementation reproduces the SCiForest paper's claim, so its loss on the
+  fraud data is about the data, not the code.
+- **Why it loses here:** each 256-row sample holds ≈ 0.4 frauds, so Sdgain rarely has a fraud
+  cluster to separate; instead it cuts off extreme *genuine* transactions one at a time
+  (68% of large-node splits), which is why 94% of its top 0.1% are genuine.
+- **On a clean 2-D plane it does not lose** (`cc_sciforest_contour.png`, 5 seeds, V14 and V4
+  only): SCiForest AUC 0.968 ± 0.000, AP 0.643 ± 0.006 vs iForest 0.966 ± 0.001, AP 0.606 ± 0.023.
+  Its disadvantage on the full data comes with the 28 other attributes. Same caveat as C8: the
+  pair was chosen with labels.
 
 - [ ] TODO: Embed figures (ψ, t, Kurtosis, threshold, score distributions) with short commentary.
 - [ ] TODO: Discuss what a fraud analyst would see: how many frauds are caught in the top-N alerts.
@@ -219,6 +274,10 @@ Comparison with the paper:
 - [ ] Hardware / language differences make absolute running times incomparable.
 - C3/C4 setup: full data scored (no train/test split), 5 seeds (0–4), t=100 for C3 and ψ=256 for C4, ψ swept from 2 to 32768. ψ=2 gives AUC 0.5 because every tree has a single split (scores are almost all equal).
 - Our C3 timings come from one machine and a pure-Python implementation, so only the trend is comparable with the paper.
+- C8/C11 use the loader as is, so `Time` is one of the 30 attributes (as in C3/C4). Dropping it changes
+  iForest's AUC by < 0.01 and AP by ≈ +0.02 over 5 seeds; the group still has to decide (§3 TODO).
+- C8/C11 score maps pick the attribute pair with labels (largest |univariate AUC − 0.5|); the forests
+  drawn on it never see labels, but the AUC/AP on that plane are optimistic for both methods.
 
 ---
 
@@ -237,6 +296,9 @@ Comparison with the paper:
 | Metrics (ROC-AUC, AP) | `sklearn.metrics` (reused) |
 | Credit card loader (`src/datasets/creditcard.py`) | Own code (uses `pandas`) |
 | C3/C4 experiment scripts (`experiments/cc_psi.py`, `cc_trees.py`) | Own code (plots with `matplotlib`) |
+| SCiForest (`src/sciforest/`) | **Own implementation from scratch** (following Algorithms 1–2 and Eq. 2–3 of the SCiForest paper) |
+| Fraud metrics, score-map helpers (`src/utils/`) | Own code (ROC-AUC/AP from `sklearn.metrics`) |
+| C8 and C11 experiment scripts (`experiments/cc_scores.py`, `cc_sciforest.py`) | Own code |
 
 ---
 
@@ -246,6 +308,7 @@ Comparison with the paper:
 - A. Dal Pozzolo, O. Caelen, R. A. Johnson, G. Bontempi. *Calibrating Probability with Undersampling for Unbalanced Classification.* IEEE SSCI 2015. (Credit card data set — see the Kaggle page for the full list of citations requested.)
 - S. D. Bay, M. Schwabacher. *Mining distance-based outliers in near linear time with randomization and a simple pruning rule.* KDD 2003. (ORCA)
 - M. M. Breunig et al. *LOF: identifying density-based local outliers.* SIGMOD 2000.
+- F. T. Liu, K. M. Ting, Z.-H. Zhou. *On Detecting Clustered Anomalies Using SCiForest.* ECML PKDD 2010, LNAI 6322, pp. 274–290.
 - [ ] TODO: Add citations for any library or code reused (scikit-learn, ...).
 
 ---
@@ -284,7 +347,9 @@ Comparison with the paper:
 - [ ] C5 normal-only training
 - [ ] C6 Kurtosis feature selection
 - [ ] C7 threshold / alert-budget analysis
-- [ ] C8 score visualisations / swamping-masking, C9 path-length convergence
+- [x] C8 score visualisations / swamping-masking
+- [ ] C9 path-length convergence
+- [x] C11 SCiForest extension
 
 ### Phase 5 — Analysis & Documentation
 - [ ] Fill §8 Results with tables and embedded figures

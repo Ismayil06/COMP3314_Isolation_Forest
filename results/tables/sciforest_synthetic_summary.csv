@@ -1,0 +1,9 @@
+anomalies,contamination,SCiForest,iForest
+dense cluster,0.01,0.993,0.979
+dense cluster,0.05,0.989,0.891
+dense cluster,0.1,0.974,0.765
+dense cluster,0.2,0.929,0.473
+dense cluster,0.3,0.863,0.211
+scattered,0.01,0.999,0.996
+scattered,0.05,0.998,0.998
+scattered,0.1,0.998,0.998

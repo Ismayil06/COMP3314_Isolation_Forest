@@ -1,0 +1,4 @@
+psi,trees,mean_frauds_in_sample,fraud_path_slope_per_fraud,fraud_path_slope_95ci,genuine_path_slope_per_fraud,genuine_path_slope_95ci,gap_slope_per_fraud,gap_slope_95ci
+256,500,0.438,-0.00874,0.02583,0.02067,0.01791,0.02941,0.02911
+2048,500,3.576,0.00687,0.00889,0.00239,0.00509,-0.00448,0.00878
+8192,500,14.148,0.00179,0.00424,-0.00056,0.0023,-0.00235,0.00404
