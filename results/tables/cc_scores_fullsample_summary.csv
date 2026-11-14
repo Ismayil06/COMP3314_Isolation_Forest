@@ -1,0 +1,3 @@
+sample,auc_mean,auc_std,ap_mean,ap_std,precision_at_n_frauds_mean,precision_at_n_frauds_std,recall_at_0.1%_mean,recall_at_0.1%_std,recall_at_0.5%_mean,recall_at_0.5%_std,recall_at_1.0%_mean,recall_at_1.0%_std,train_time_mean,train_time_std
+psi = 256,0.9496,0.0031,0.1616,0.0141,0.2764,0.0273,0.1836,0.0413,0.4438,0.0132,0.6111,0.0215,0.0959,0.0068
+whole data (psi = n),0.9532,0.003,0.2356,0.0133,0.3211,0.0234,0.2351,0.0071,0.6003,0.0031,0.7182,0.0135,67.9826,0.2694
